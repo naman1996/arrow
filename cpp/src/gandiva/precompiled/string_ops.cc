@@ -40,6 +40,16 @@ gdv_int32 bit_length_binary(const gdv_binary input, gdv_int32 length) {
   return length * 8;
 }
 
+int match_string(std::string str, int startPos, std::string splitter) {
+  for (int i = startPos; i < (int)str.size(); i++) {
+    if (str.substr(i, splitter.size()) == splitter) {
+      return i + splitter.size();
+    }
+  }
+
+  return -1;
+}
+
 FORCE_INLINE
 gdv_int32 mem_compare(const char* left, gdv_int32 left_len, const char* right,
                       gdv_int32 right_len) {
@@ -877,6 +887,54 @@ const char* binary_string(gdv_int64 context, const char* text, gdv_int32 text_le
   return ret;
 }
 
+FORCE_INLINE
+const char* split_part(gdv_int64 context, const char* text, gdv_int32 text_len,
+                       const char* delimiter, gdv_int32 delim_len, gdv_int32 index,
+                       gdv_int32* out_len) {
+  char* ret;
+  if (index < 1) {
+    gdv_fn_context_set_error_msg(context, "Index should be >= 1");
+    return "";
+  }
+
+  if (delim_len == 0 || text_len == 0) {
+    //output will just be text if no delimiter is provided
+    return text;
+  }
+
+  // converting both c style arrays to string for easy processing
+  std::string input = std::string(text);
+  std::string splitter = std::string(delimiter);
+  std::string out_str = "";
+  int i = 0, match_no = 1;
+
+  while (i < (int)input.size()) {
+    // find the position where delimiter matched for the first time
+    int match_pos = match_string(input, i, splitter);
+    if (match_pos == -1 && match_no != index) {
+      // reached the end without finding a match.
+      *out_len = 0;
+      return "";
+    } else {
+      // Found a match. If the match number is index then return this match
+      if (match_no == index) {
+        int end_pos = match_pos - splitter.size();
+        out_str = input.substr(i, end_pos - i);
+        *out_len = out_str.size();
+        ret = reinterpret_cast<char*>(gdv_fn_context_arena_malloc(context, *out_len));
+        if(ret )
+        memcpy(ret, out_str.c_str(), *out_len);
+        return ret;
+      } else {
+        i = match_pos;
+        match_no++;
+      }
+    }
+  }
+
+  return "";
+}
+
 #define CAST_NUMERIC_FROM_STRING(OUT_TYPE, ARROW_TYPE, TYPE_NAME)                       \
   FORCE_INLINE                                                                          \
   gdv_##OUT_TYPE cast##TYPE_NAME##_utf8(int64_t context, const char* data,              \
@@ -884,8 +942,7 @@ const char* binary_string(gdv_int64 context, const char* text, gdv_int32 text_le
     gdv_##OUT_TYPE val = 0;                                                             \
     int32_t trimmed_len;                                                                \
     data = btrim_utf8(context, data, len, &trimmed_len);                                \
-    if (!arrow::internal::StringConverter<ARROW_TYPE>::Convert(data, trimmed_len,       \
-                                                               &val)) {                 \
+    if (!arrow::internal::ParseValue<ARROW_TYPE>(data, trimmed_len, &val)) {            \
       std::string err = "Failed to cast the string " + std::string(data, trimmed_len) + \
                         " to " #OUT_TYPE;                                               \
       gdv_fn_context_set_error_msg(context, err.c_str());                               \
