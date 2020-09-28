@@ -125,7 +125,8 @@ std::vector<NativeFunction> GetStringFunctionRegistry() {
                      kResultNullIfNull, "binary_string", NativeFunction::kNeedsContext),
 
       NativeFunction("split_part", {}, DataTypeVector{utf8(), utf8(), int32()}, utf8(),
-                     kResultNullIfNull, "split_part", NativeFunction::kNeedsContext)};
+                     kResultNullIfNull, "split_part",
+                     NativeFunction::kNeedsContext | NativeFunction::kCanReturnErrors)};
 
   return string_fn_registry_;
 }
