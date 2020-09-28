@@ -16,8 +16,8 @@
 // under the License.
 
 // String functions
-#include "arrow/util/string.h"
 #include "arrow/util/value_parsing.h"
+
 extern "C" {
 
 #include <limits.h>
@@ -40,10 +40,11 @@ gdv_int32 bit_length_binary(const gdv_binary input, gdv_int32 length) {
   return length * 8;
 }
 
-int match_string(std::string str, int startPos, std::string splitter) {
-  for (int i = startPos; i < (int)str.size(); i++) {
-    if (str.substr(i, splitter.size()) == splitter) {
-      return i + splitter.size();
+int match_string(const char* input, gdv_int32 input_len, gdv_int32 start_pos,
+                 const char* delim, gdv_int32 delim_len) {
+  for (int i = start_pos; i < input_len; i++) {
+    if (memcmp(input + i, delim, delim_len) == 0) {
+      return i + delim_len;
     }
   }
 
@@ -846,71 +847,27 @@ const char* replace_utf8_utf8_utf8(gdv_int64 context, const char* text,
 }
 
 FORCE_INLINE
-const char* binary_string(gdv_int64 context, const char* text, gdv_int32 text_len,
-                          gdv_int32* out_len) {
-  gdv_binary ret =
-      reinterpret_cast<gdv_binary>(gdv_fn_context_arena_malloc(context, text_len));
-
-  if (ret == nullptr) {
-    gdv_fn_context_set_error_msg(context, "Could not allocate memory for output string");
-    *out_len = 0;
-    return "";
-  }
-
-  if (text_len == 0) {
-    *out_len = 0;
-    return "";
-  }
-
-  // converting hex encoded string to normal string
-  int j = 0;
-  for (int i = 0; i < text_len; i++, j++) {
-    if (text[i] == '\\' && i + 3 < text_len &&
-        (text[i + 1] == 'x' || text[i + 1] == 'X')) {
-      std::string hex_string;
-      hex_string.push_back(toupper(text[i + 2]));
-      hex_string.push_back(toupper(text[i + 3]));
-      uint8_t out;
-      arrow::Status st;
-      st = arrow::ParseHexValue(hex_string.c_str(), &out);
-      if (!st.ok()) {
-        gdv_fn_context_set_error_msg(context, ("Unable to parse " + hex_string).c_str());
-        return "";
-      }
-      ret[j] = static_cast<char>(out);
-      i += 3;
-    } else {
-      ret[j] = text[i];
-    }
-  }
-  *out_len = j;
-  return ret;
-}
-
-FORCE_INLINE
 const char* split_part(gdv_int64 context, const char* text, gdv_int32 text_len,
                        const char* delimiter, gdv_int32 delim_len, gdv_int32 index,
                        gdv_int32* out_len) {
-  char* ret;
   if (index < 1) {
-    gdv_fn_context_set_error_msg(context, "Index should be >= 1");
+    char error_message[100];
+    snprintf(error_message, 100,
+             "Index in split_part must be positive, value provided was %d", index);
+    gdv_fn_context_set_error_msg(context, error_message);
     return "";
   }
 
   if (delim_len == 0 || text_len == 0) {
-    //output will just be text if no delimiter is provided
+    // output will just be text if no delimiter is provided
     return text;
   }
 
-  // converting both c style arrays to string for easy processing
-  std::string input = std::string(text);
-  std::string splitter = std::string(delimiter);
-  std::string out_str = "";
   int i = 0, match_no = 1;
 
-  while (i < (int)input.size()) {
+  while (i < text_len) {
     // find the position where delimiter matched for the first time
-    int match_pos = match_string(input, i, splitter);
+    int match_pos = match_string(text, text_len, i, delimiter, delim_len);
     if (match_pos == -1 && match_no != index) {
       // reached the end without finding a match.
       *out_len = 0;
@@ -918,13 +875,25 @@ const char* split_part(gdv_int64 context, const char* text, gdv_int32 text_len,
     } else {
       // Found a match. If the match number is index then return this match
       if (match_no == index) {
-        int end_pos = match_pos - splitter.size();
-        out_str = input.substr(i, end_pos - i);
-        *out_len = out_str.size();
-        ret = reinterpret_cast<char*>(gdv_fn_context_arena_malloc(context, *out_len));
-        if(ret )
-        memcpy(ret, out_str.c_str(), *out_len);
-        return ret;
+        int end_pos = match_pos - delim_len;
+
+        if (match_pos == -1) {
+          // end position should be last position of the string as we have the last
+          // delimiter
+          end_pos = text_len;
+        }
+
+        *out_len = end_pos - i;
+        char* out_str =
+            reinterpret_cast<char*>(gdv_fn_context_arena_malloc(context, *out_len));
+        if (out_str == nullptr) {
+          gdv_fn_context_set_error_msg(context,
+                                       "Could not allocate memory for output string %d");
+          *out_len = 0;
+          return "";
+        }
+        memcpy(out_str, text + i, *out_len);
+        return out_str;
       } else {
         i = match_pos;
         match_no++;
