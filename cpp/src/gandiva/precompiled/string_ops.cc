@@ -16,6 +16,7 @@
 // under the License.
 
 // String functions
+#include "arrow/util/string.h"
 #include "arrow/util/value_parsing.h"
 extern "C" {
 
