@@ -124,7 +124,7 @@ std::vector<NativeFunction> GetStringFunctionRegistry() {
                      NativeFunction::kNeedsContext | NativeFunction::kCanReturnErrors),
 
       NativeFunction("binary_string", {}, DataTypeVector{utf8()}, binary(),
-                     kResultNullIfNull, "binary_string", NativeFunction::kNeedsContext)};
+                     kResultNullIfNull, "binary_string", NativeFunction::kNeedsContext| NativeFunction::kCanReturnErrors)};
 
   return string_fn_registry_;
 }
