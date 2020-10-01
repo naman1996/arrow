@@ -812,49 +812,31 @@ TEST(TestStringOps, TestBinaryString) {
   gandiva::ExecutionContext ctx;
   uint64_t ctx_ptr = reinterpret_cast<gdv_int64>(&ctx);
   gdv_int32 out_len = 0;
-  gdv_int32 temp_len = 0;
   const char* out_str;
-  const char* temp_str;
 
   out_str = binary_string(ctx_ptr, "TestString", 10, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  std::string output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "TestString");
+  EXPECT_EQ(std::string(out_str, out_len), "TestString");
 
   out_str = binary_string(ctx_ptr, "", 0, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "");
+  EXPECT_EQ(std::string(out_str, out_len), "");
 
   out_str = binary_string(ctx_ptr, "T", 1, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "T");
+  EXPECT_EQ(std::string(out_str, out_len), "T");
 
   out_str = binary_string(ctx_ptr, "\\x41\\x42\\x43", 12, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "ABC");
+  EXPECT_EQ(std::string(out_str, out_len), "ABC");
 
   out_str = binary_string(ctx_ptr, "\\x41", 4, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "A");
+  EXPECT_EQ(std::string(out_str, out_len), "A");
 
   out_str = binary_string(ctx_ptr, "\\x6d\\x6D", 8, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "mm");
+  EXPECT_EQ(std::string(out_str, out_len), "mm");
 
   out_str = binary_string(ctx_ptr, "\\x6f\\x6d", 8, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "om");
+  EXPECT_EQ(std::string(out_str, out_len), "om");
 
   out_str = binary_string(ctx_ptr, "\\x4f\\x4D", 8, &out_len);
-  temp_str = convert_fromUTF8_binary(ctx_ptr, out_str, out_len, &temp_len);
-  output = std::string(temp_str, temp_len);
-  EXPECT_EQ(output, "OM");
+  EXPECT_EQ(std::string(out_str, out_len), "OM");
 }
 
 TEST(TestStringOps, TestSplitPart) {
