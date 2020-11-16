@@ -190,7 +190,7 @@ public abstract class BaseFixedWidthVector extends BaseValueVector
   /**
    * Call this if you change the capacity of valueBuffer or validityBuffer.
    */
-  protected void refreshValueCapacity() {
+  public void refreshValueCapacity() {
     actualValueCapacity = Math.min(getValueBufferValueCapacity(), getValidityBufferValueCapacity());
   }
 
